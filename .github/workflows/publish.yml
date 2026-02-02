@@ -14,7 +14,64 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      should-build: ${{ steps.compare.outputs.should-build }}
+      versions-hash: ${{ steps.fetch.outputs.versions-hash }}
+    steps:
+      - name: Fetch latest versions
+        id: fetch
+        run: |
+          set -euo pipefail
+
+          # mise: fetch latest release tag from GitHub API
+          MISE_VERSION=$(curl -sf https://api.github.com/repos/jdx/mise/releases/latest | jq -r '.tag_name')
+          if [ -z "${MISE_VERSION}" ] || [ "${MISE_VERSION}" = "null" ]; then
+            echo "::error::Failed to fetch mise version"
+            exit 1
+          fi
+
+          # Node.js LTS: fetch from official API
+          NODE_VERSION=$(curl -sf https://nodejs.org/dist/index.json | jq -r '[.[] | select(.lts != false)][0].version')
+          if [ -z "${NODE_VERSION}" ] || [ "${NODE_VERSION}" = "null" ]; then
+            echo "::error::Failed to fetch Node.js LTS version"
+            exit 1
+          fi
+
+          HASH="${MISE_VERSION}-${NODE_VERSION}"
+          echo "mise=${MISE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "node=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "versions-hash=${HASH}" >> "$GITHUB_OUTPUT"
+          echo "::notice::mise=${MISE_VERSION}, node=${NODE_VERSION}, hash=${HASH}"
+
+      - name: Restore previous version cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/version-hash
+          key: version-hash-${{ steps.fetch.outputs.versions-hash }}
+          restore-keys: |
+            version-hash-
+
+      - name: Compare versions
+        id: compare
+        run: |
+          CURRENT="${{ steps.fetch.outputs.versions-hash }}"
+          if [ -f /tmp/version-hash ] && [ "$(cat /tmp/version-hash)" = "${CURRENT}" ]; then
+            echo "should-build=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Versions unchanged, skipping build"
+          else
+            echo "should-build=true" >> "$GITHUB_OUTPUT"
+            echo "${CURRENT}" > /tmp/version-hash
+            echo "::notice::Version change detected, will build"
+          fi
+
   build-and-push:
+    needs: check-versions
+    if: |
+      github.event_name != 'schedule' ||
+      needs.check-versions.outputs.should-build == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
