@@ -4,6 +4,9 @@
 
 Docker images based on Ubuntu Latest with [Mise](https://mise.jdx.dev/) pre-installed. Available in two variants:
 
+> [!NOTE]
+> The GHCR package has been renamed from `ghcr.io/maou-shonen/mise-docker` to `ghcr.io/maou-shonen/mise`. Please use the new name.
+
 ## Variants
 
 ### `:latest` - Mise Only
