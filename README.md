@@ -1,6 +1,7 @@
 # mise-docker
 
 [![Build and Publish Docker Image](https://github.com/maou-shonen/mise-docker/actions/workflows/publish.yml/badge.svg)](https://github.com/maou-shonen/mise-docker/actions/workflows/publish.yml)
+[![:latest](https://img.shields.io/github/v/release/maou-shonen/mise-docker?label=%3Alatest&sort=date)](https://github.com/maou-shonen/mise-docker/releases/latest)
 
 Docker images based on Ubuntu Latest with [Mise](https://mise.jdx.dev/) pre-installed. Available in two variants:
 
