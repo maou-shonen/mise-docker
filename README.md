@@ -10,16 +10,16 @@ Docker images based on Ubuntu Latest with [Mise](https://mise.jdx.dev/) pre-inst
 Base image with only Mise installed.
 
 ```bash
-docker pull ghcr.io/maou-shonen/mise-docker:latest
-docker run -it ghcr.io/maou-shonen/mise-docker:latest
+docker pull ghcr.io/maou-shonen/mise:latest
+docker run -it ghcr.io/maou-shonen/mise:latest
 ```
 
 ### `:node` - Mise + Node.js LTS
 Image with Mise and Node.js LTS pre-installed.
 
 ```bash
-docker pull ghcr.io/maou-shonen/mise-docker:node
-docker run -it ghcr.io/maou-shonen/mise-docker:node
+docker pull ghcr.io/maou-shonen/mise:node
+docker run -it ghcr.io/maou-shonen/mise:node
 ```
 
 ## Features
@@ -34,20 +34,20 @@ docker run -it ghcr.io/maou-shonen/mise-docker:node
 ### Verify Mise Installation
 
 ```bash
-docker run --rm ghcr.io/maou-shonen/mise-docker:latest mise --version
+docker run --rm ghcr.io/maou-shonen/mise:latest mise --version
 ```
 
 ### Use Node.js
 
 ```bash
-docker run --rm ghcr.io/maou-shonen/mise-docker:node mise exec -- node --version
-docker run --rm ghcr.io/maou-shonen/mise-docker:node mise exec -- npm --version
+docker run --rm ghcr.io/maou-shonen/mise:node mise exec -- node --version
+docker run --rm ghcr.io/maou-shonen/mise:node mise exec -- npm --version
 ```
 
 ### Install Additional Tools with Mise
 
 ```bash
-docker run -it ghcr.io/maou-shonen/mise-docker:latest
+docker run -it ghcr.io/maou-shonen/mise:latest
 # Inside container:
 mise use python@latest
 mise install python@latest
