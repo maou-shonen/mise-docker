@@ -37,13 +37,18 @@ jobs:
             local max_retries=3
             local attempt=0
             local wait=5
+            local body_file
+            body_file=$(mktemp)
+            trap "rm -f '$body_file'" RETURN
 
             while [ "$attempt" -lt "$max_retries" ]; do
               local curl_exit=0
-              HTTP_CODE=$(curl -s -o /tmp/curl_body -w '%{http_code}' "$@" "$url") || curl_exit=$?
+              local HTTP_CODE
+              : > "$body_file"
+              HTTP_CODE=$(curl -s -o "$body_file" -w '%{http_code}' "$@" "$url") || curl_exit=$?
 
               if [ "$curl_exit" -eq 0 ] && [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-                cat /tmp/curl_body
+                cat "$body_file"
                 return 0
               fi
 
@@ -62,7 +67,7 @@ jobs:
             done
 
             echo "::error::Failed to fetch ${url} after ${max_retries} attempts" >&2
-            [ -f /tmp/curl_body ] && cat /tmp/curl_body >&2
+            [ -s "$body_file" ] && cat "$body_file" >&2
             return 1
           }
 
