@@ -16,24 +16,68 @@ env:
 jobs:
   check-versions:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should-build: ${{ steps.compare.outputs.should-build }}
       versions-hash: ${{ steps.fetch.outputs.versions-hash }}
     steps:
       - name: Fetch latest versions
         id: fetch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
-          # mise: fetch latest release tag from GitHub API
-          MISE_VERSION=$(curl -sf https://api.github.com/repos/jdx/mise/releases/latest | jq -r '.tag_name')
+          # Retry wrapper: handles both HTTP errors and curl transport failures
+          # Retries up to 3 times with exponential backoff (5s, 10s, 20s)
+          fetch_with_retry() {
+            local url="$1"
+            shift
+            local max_retries=3
+            local attempt=0
+            local wait=5
+
+            while [ "$attempt" -lt "$max_retries" ]; do
+              local curl_exit=0
+              HTTP_CODE=$(curl -s -o /tmp/curl_body -w '%{http_code}' "$@" "$url") || curl_exit=$?
+
+              if [ "$curl_exit" -eq 0 ] && [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+                cat /tmp/curl_body
+                return 0
+              fi
+
+              attempt=$((attempt + 1))
+              if [ "$curl_exit" -ne 0 ]; then
+                echo "::warning::curl failed (exit ${curl_exit}) for ${url}, attempt ${attempt}/${max_retries}"
+              else
+                echo "::warning::HTTP ${HTTP_CODE} from ${url}, attempt ${attempt}/${max_retries}"
+              fi
+
+              if [ "$attempt" -lt "$max_retries" ]; then
+                echo "::warning::Retrying in ${wait}s..."
+                sleep "$wait"
+                wait=$((wait * 2))
+              fi
+            done
+
+            echo "::error::Failed to fetch ${url} after ${max_retries} attempts"
+            [ -f /tmp/curl_body ] && cat /tmp/curl_body >&2
+            return 1
+          }
+
+          # mise: fetch latest release tag from GitHub API (authenticated to avoid rate limits)
+          MISE_VERSION=$(fetch_with_retry \
+            "https://api.github.com/repos/jdx/mise/releases/latest" \
+            -H "Authorization: Bearer ${GH_TOKEN}" | jq -r '.tag_name')
           if [ -z "${MISE_VERSION}" ] || [ "${MISE_VERSION}" = "null" ]; then
             echo "::error::Failed to fetch mise version"
             exit 1
           fi
 
           # Node.js LTS: fetch from official API
-          NODE_VERSION=$(curl -sf https://nodejs.org/dist/index.json | jq -r '[.[] | select(.lts != false)][0].version')
+          NODE_VERSION=$(fetch_with_retry \
+            "https://nodejs.org/dist/index.json" | jq -r '[.[] | select(.lts != false)][0].version')
           if [ -z "${NODE_VERSION}" ] || [ "${NODE_VERSION}" = "null" ]; then
             echo "::error::Failed to fetch Node.js LTS version"
             exit 1
