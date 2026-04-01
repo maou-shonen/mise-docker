@@ -49,19 +49,19 @@ jobs:
 
               attempt=$((attempt + 1))
               if [ "$curl_exit" -ne 0 ]; then
-                echo "::warning::curl failed (exit ${curl_exit}) for ${url}, attempt ${attempt}/${max_retries}"
+                echo "::warning::curl failed (exit ${curl_exit}) for ${url}, attempt ${attempt}/${max_retries}" >&2
               else
-                echo "::warning::HTTP ${HTTP_CODE} from ${url}, attempt ${attempt}/${max_retries}"
+                echo "::warning::HTTP ${HTTP_CODE} from ${url}, attempt ${attempt}/${max_retries}" >&2
               fi
 
               if [ "$attempt" -lt "$max_retries" ]; then
-                echo "::warning::Retrying in ${wait}s..."
+                echo "::warning::Retrying in ${wait}s..." >&2
                 sleep "$wait"
                 wait=$((wait * 2))
               fi
             done
 
-            echo "::error::Failed to fetch ${url} after ${max_retries} attempts"
+            echo "::error::Failed to fetch ${url} after ${max_retries} attempts" >&2
             [ -f /tmp/curl_body ] && cat /tmp/curl_body >&2
             return 1
           }
