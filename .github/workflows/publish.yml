@@ -16,34 +16,22 @@ env:
 jobs:
   check-versions:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should-build: ${{ steps.compare.outputs.should-build }}
       versions-hash: ${{ steps.fetch.outputs.versions-hash }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: scripts
+
       - name: Fetch latest versions
         id: fetch
-        run: |
-          set -euo pipefail
-
-          # mise: fetch latest release tag from GitHub API
-          MISE_VERSION=$(curl -sf https://api.github.com/repos/jdx/mise/releases/latest | jq -r '.tag_name')
-          if [ -z "${MISE_VERSION}" ] || [ "${MISE_VERSION}" = "null" ]; then
-            echo "::error::Failed to fetch mise version"
-            exit 1
-          fi
-
-          # Node.js LTS: fetch from official API
-          NODE_VERSION=$(curl -sf https://nodejs.org/dist/index.json | jq -r '[.[] | select(.lts != false)][0].version')
-          if [ -z "${NODE_VERSION}" ] || [ "${NODE_VERSION}" = "null" ]; then
-            echo "::error::Failed to fetch Node.js LTS version"
-            exit 1
-          fi
-
-          HASH="${MISE_VERSION}-${NODE_VERSION}"
-          echo "mise=${MISE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "node=${NODE_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "versions-hash=${HASH}" >> "$GITHUB_OUTPUT"
-          echo "::notice::mise=${MISE_VERSION}, node=${NODE_VERSION}, hash=${HASH}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/fetch-versions.sh
 
       - name: Restore previous version cache
         id: cache
