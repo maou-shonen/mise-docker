@@ -45,7 +45,8 @@ jobs:
               local curl_exit=0
               local HTTP_CODE
               : > "$body_file"
-              HTTP_CODE=$(curl -s -o "$body_file" -w '%{http_code}' "$@" "$url") || curl_exit=$?
+              HTTP_CODE=$(curl -sS --connect-timeout 10 --max-time 30 \
+                -o "$body_file" -w '%{http_code}' "$@" "$url") || curl_exit=$?
 
               if [ "$curl_exit" -eq 0 ] && [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
                 cat "$body_file"
