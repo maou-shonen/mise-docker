@@ -30,7 +30,7 @@ jobs:
           set -euo pipefail
 
           # Retry wrapper: handles both HTTP errors and curl transport failures
-          # Retries up to 3 times with exponential backoff (5s, 10s, 20s)
+          # Up to 3 attempts with exponential backoff (5s, 10s between attempts)
           fetch_with_retry() {
             local url="$1"
             shift
