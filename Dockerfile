@@ -11,6 +11,7 @@ ENV PATH="/mise/shims:$PATH"
 # Install dependencies
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
+  git \
   curl \
   build-essential \
   ca-certificates \
