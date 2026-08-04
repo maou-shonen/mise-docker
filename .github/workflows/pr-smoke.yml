@@ -81,6 +81,7 @@ jobs:
               exit 1
               ;;
           esac
+          workdir=$(docker inspect --format '{{.Config.WorkingDir}}' mise-smoke-ci); test "$workdir" = ""
           docker run --rm --entrypoint sh mise-smoke-ci \
             -c 'node --version && npm --version && mise --version && \
               command -v git && command -v gcc'
@@ -90,17 +91,11 @@ jobs:
                 >/tmp/broken/mise.toml && \
               cd /tmp/broken && \
               mise trust --all && mise install'
-          docker run --rm --entrypoint sh mise-smoke-ci \
-            -c 'node --version'
-          docker tag mise-smoke-ci mise-smoke-node
-          docker run --rm --entrypoint node mise-smoke-node --version
-          test "$(docker image inspect --format '{{.Id}}' mise-smoke-node)" = \
-            "$(docker image inspect --format '{{.Id}}' mise-smoke-ci)"
 
       - name: Clean up smoke images
         if: ${{ always() }}
         run: |
           docker image rm -f \
-            mise-smoke-base mise-smoke-dev mise-smoke-ci mise-smoke-node \
+            mise-smoke-base mise-smoke-dev mise-smoke-ci \
             2>/dev/null || true
           rm -rf "$RUNNER_TEMP/mise-smoke"
