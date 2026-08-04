@@ -65,7 +65,7 @@ jobs:
             sh -c 'printf "user-command-must-not-run\n" >/workspace/marker'
           test ! -e "$bad_fixture/marker"
 
-      - name: Smoke test ci and local node tag
+      - name: Smoke test ci
         run: |
           set -Eeuo pipefail
           # `docker inspect` reports an unset/empty `ENTRYPOINT` as `null`
