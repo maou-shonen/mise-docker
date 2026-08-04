@@ -21,6 +21,8 @@ jobs:
     outputs:
       should-build: ${{ steps.compare.outputs.should-build }}
       versions-hash: ${{ steps.fetch.outputs.versions-hash }}
+      mise: ${{ steps.fetch.outputs.mise }}
+      node: ${{ steps.fetch.outputs.node }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -70,8 +72,10 @@ jobs:
         variant:
           - target: base
             tag-suffix: "latest"
-          - target: node
-            tag-suffix: "node"
+          - target: dev
+            tag-suffix: "dev"
+          - target: ci
+            tag-suffix: "ci"
 
     steps:
       - name: Checkout repository
@@ -96,6 +100,7 @@ jobs:
             type=raw,value=${{ matrix.variant.tag-suffix }}
             type=schedule,pattern={{date 'YYYYMMDD'}}-${{ matrix.variant.tag-suffix }}
             type=sha,prefix={{date 'YYYYMMDD'}}-${{ matrix.variant.tag-suffix }}-
+            ${{ matrix.variant.target == 'ci' && 'type=raw,value=node' || '' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -103,6 +108,9 @@ jobs:
           context: .
           target: ${{ matrix.variant.target }}
           push: true
+          build-args: |
+            MISE_VERSION=${{ needs.check-versions.outputs.mise }}
+            NODE_VERSION=${{ needs.check-versions.outputs.node }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
