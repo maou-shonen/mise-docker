@@ -23,7 +23,6 @@ jobs:
           trap 'rm -rf "$RUNNER_TEMP/mise-smoke"' EXIT
           mkdir -p "$RUNNER_TEMP/mise-smoke"
           ./scripts/fetch-versions.sh
-          echo "versions-hash=${{ steps.versions.outputs.versions-hash }}"
 
       - name: Build base, dev, and ci targets
         run: |

@@ -126,6 +126,16 @@ docker run -it --rm --entrypoint bash ghcr.io/maou-shonen/mise:latest
 The `ci` variant does not run any implicit setup. CI jobs explicitly
 control trust, install, and the command flow:
 
+> [!WARNING]
+> `mise trust --all` trusts every Mise config it can discover from the
+> working directory — the workspace itself, its parent directories,
+> and its subdirectories, not narrowly only the workspace you mounted.
+> A trusted mise config can run arbitrary code through `tasks`, `hooks`,
+> `env`, and inline templates during `mise install` or any later
+> `mise exec`/`mise run`. Only run the flow below on reviewed sources
+> you trust, or replace `--all` with an explicit allowlist that names
+> exactly the config files you intend to trust.
+
 ```bash
 docker run --rm \
   -v "$PWD":/work \
