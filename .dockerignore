@@ -1,0 +1,10 @@
+# Files not needed by `docker build`.
+.git
+.github
+docs
+scripts
+CONTEXT.md
+README.md
+LICENSE
+renovate.json
+*.md

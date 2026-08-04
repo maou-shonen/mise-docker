@@ -1,0 +1,101 @@
+---
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Build and smoke test Docker targets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch versions
+        id: versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          trap 'rm -rf "$RUNNER_TEMP/mise-smoke"' EXIT
+          mkdir -p "$RUNNER_TEMP/mise-smoke"
+          ./scripts/fetch-versions.sh
+
+      - name: Build base, dev, and ci targets
+        run: |
+          set -Eeuo pipefail
+          docker build --target base \
+            --build-arg MISE_VERSION="${{ steps.versions.outputs.mise }}" \
+            --build-arg NODE_VERSION="${{ steps.versions.outputs.node }}" \
+            -t mise-smoke-base .
+          docker build --target dev \
+            --build-arg MISE_VERSION="${{ steps.versions.outputs.mise }}" \
+            --build-arg NODE_VERSION="${{ steps.versions.outputs.node }}" \
+            -t mise-smoke-dev .
+          docker build --target ci \
+            --build-arg MISE_VERSION="${{ steps.versions.outputs.mise }}" \
+            --build-arg NODE_VERSION="${{ steps.versions.outputs.node }}" \
+            -t mise-smoke-ci .
+
+      - name: Smoke test base
+        run: |
+          set -Eeuo pipefail
+          docker run --rm --entrypoint mise mise-smoke-base --version
+          ! docker run --rm --entrypoint sh mise-smoke-base \
+            -c 'command -v git >/dev/null || command -v gcc >/dev/null'
+
+      - name: Smoke test dev entrypoint and fixture
+        run: |
+          set -Eeuo pipefail
+          fixture="$RUNNER_TEMP/mise-smoke/fixture"
+          trap 'rm -rf "$RUNNER_TEMP/mise-smoke"' EXIT
+          mkdir -p "$fixture"
+          printf '[tools]\nnode = "22"\n' > "$fixture/mise.toml"
+          docker run --rm -v "$fixture:/workspace" mise-smoke-dev \
+            sh -c 'node --version && command -v git && command -v gcc && \
+              test -x /usr/local/bin/docker-entrypoint.sh'
+          ! docker run --rm --entrypoint sh mise-smoke-dev -c 'command -v node'
+          bad_fixture="$RUNNER_TEMP/mise-smoke/bad-fixture"
+          mkdir -p "$bad_fixture"
+          printf '[tools]\nthis-is-invalid = true\n' > "$bad_fixture/mise.toml"
+          ! docker run --rm -v "$bad_fixture:/workspace" mise-smoke-dev \
+            sh -c 'printf "user-command-must-not-run\n" >/workspace/marker'
+          test ! -e "$bad_fixture/marker"
+
+      - name: Smoke test ci
+        run: |
+          set -Eeuo pipefail
+          # `docker inspect` reports an unset/empty `ENTRYPOINT` as `null`
+          # (JSON), not `[]`. Accept both shapes so the assertion is robust
+          # across Docker versions whose null-vs-empty-list serialization
+          # differs. `WORKDIR ""` renders as `""` and is asserted as-is.
+          ent_json="$(docker inspect --format '{{json .Config.Entrypoint}}' \
+            mise-smoke-ci)"
+          case "$ent_json" in
+            'null'|'[]') ;;
+            *)
+              echo "::error::mise-smoke-ci Config.Entrypoint expected null or [], got: $ent_json"
+              exit 1
+              ;;
+          esac
+          workdir=$(docker inspect --format '{{.Config.WorkingDir}}' mise-smoke-ci); test "$workdir" = ""
+          docker run --rm --entrypoint sh mise-smoke-ci \
+            -c 'node --version && npm --version && mise --version && \
+              command -v git && command -v gcc'
+          ! docker run --rm --entrypoint sh mise-smoke-ci \
+            -c 'mkdir -p /tmp/broken && \
+              printf "[tools]\nthis-is-invalid = true\n" \
+                >/tmp/broken/mise.toml && \
+              cd /tmp/broken && \
+              mise trust --all && mise install'
+
+      - name: Clean up smoke images
+        if: ${{ always() }}
+        run: |
+          docker image rm -f \
+            mise-smoke-base mise-smoke-dev mise-smoke-ci \
+            2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/mise-smoke"
